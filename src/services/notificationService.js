@@ -6,11 +6,12 @@ const suppressionService = require('./suppressionService');
 const { providerFor } = require('../providers');
 const { httpError, notFound } = require('../utils/errors');
 const { render, missingRequired } = require('../utils/template.util');
-const { maskEmail } = require('../utils/mask');
+const { maskEmail, maskPhone } = require('../utils/mask');
 const { clock } = require('../utils/clock');
 const { toSequelizePage, buildEnvelope } = require('../utils/pagination');
 
-const ADDRESS_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_RE = /^\+?[1-9]\d{1,14}$/; // E.164 format
 const MAX_SCHEDULE_AHEAD_DAYS = 366;
 const maxAttempts = () => Number(process.env.MAX_ATTEMPTS) || 5;
 
@@ -54,11 +55,17 @@ class NotificationService {
    * a suppressed address still produces a log row (status SUPPRESSED) rather than an error.
    */
   async send(payload, { tenantUuid, userId }) {
+    console.log(`NotificationService.send: ${JSON.stringify(payload)} for tenant ${tenantUuid} by user ${userId}`);
     const channel = payload.channel || 'EMAIL';
     providerFor(channel); // 400 for a channel that does not exist yet
 
-    const address = String(payload.to?.address || '').trim().toLowerCase();
-    if (!ADDRESS_RE.test(address) || address.length > 255) throw httpError(400, 'INVALID_RECIPIENT', 'The recipient address is not a valid email address');
+    const address = String(payload.to?.address || '').trim();
+    if (channel === 'EMAIL') {
+      const emailLower = address.toLowerCase();
+      if (!EMAIL_RE.test(emailLower) || emailLower.length > 255) throw httpError(400, 'INVALID_RECIPIENT', 'The recipient address is not a valid email address');
+    } else if (channel === 'WHATSAPP' || channel === 'SMS') {
+      if (!PHONE_RE.test(address) || address.length > 20) throw httpError(400, 'INVALID_RECIPIENT', 'The recipient address is not a valid phone number (E.164 format, e.g. +15551234567)');
+    }
 
     if (payload.idempotencyKey) {
       const existing = await Notification.findOne({ where: { tenant_uuid: tenantUuid, idempotency_key: payload.idempotencyKey } });
@@ -86,12 +93,12 @@ class NotificationService {
       createdBy: userId || null,
     };
 
-    const settings = await settingsService.effectiveEmail(tenantUuid);
+    const settings = await settingsService.effective(channel, tenantUuid);
     let status = 'PENDING';
     let reason = null;
     if (!settings.enabled) {
       status = 'SUPPRESSED';
-      reason = 'Email notifications are switched off for this organization';
+      reason = `${channel} notifications are switched off for this organization`;
     } else {
       const block = await suppressionService.blocking({ tenantUuid, channel, address, category: template.category });
       if (block) {

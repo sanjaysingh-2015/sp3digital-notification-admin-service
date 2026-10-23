@@ -46,6 +46,28 @@ module.exports = {
     return { status: 202, body: result };
   }),
 
+  getWhatsAppSettings: handle(async (req) => ({ status: 200, body: await settingsService.get(req.auth.tenantUuid, 'WHATSAPP') })),
+  updateWhatsAppSettings: handle(async (req) => ({ status: 200, body: await settingsService.update(req.auth.tenantUuid, 'WHATSAPP', req.body, ctxOf(req)) })),
+  testWhatsApp: handle(async (req) => {
+    const sender = (await settingsService.effective('WHATSAPP', req.auth.tenantUuid)).from.name;
+    const result = await notificationService.send(
+      { templateKey: 'TEST_WHATSAPP', channel: 'WHATSAPP', to: { address: req.body.to }, variables: { senderName: sender }, priority: 1, sourceService: 'notification-service', sourceRef: 'settings-test' },
+      ctxOf(req),
+    );
+    return { status: 202, body: result };
+  }),
+
+  getSmsSettings: handle(async (req) => ({ status: 200, body: await settingsService.get(req.auth.tenantUuid, 'SMS') })),
+  updateSmsSettings: handle(async (req) => ({ status: 200, body: await settingsService.update(req.auth.tenantUuid, 'SMS', req.body, ctxOf(req)) })),
+  testSms: handle(async (req) => {
+    const sender = (await settingsService.effective('SMS', req.auth.tenantUuid)).from.name;
+    const result = await notificationService.send(
+      { templateKey: 'TEST_SMS', channel: 'SMS', to: { address: req.body.to }, variables: { senderName: sender }, priority: 1, sourceService: 'notification-service', sourceRef: 'settings-test' },
+      ctxOf(req),
+    );
+    return { status: 202, body: result };
+  }),
+
   // suppressions
   listSuppressions: handle(async (req) => ({ status: 200, body: await suppressionService.list({ ...req.query, tenantUuid: req.auth.tenantUuid }) })),
   addSuppression: handle(async (req) => ({ status: 201, body: await suppressionService.add({ ...req.body, ...ctxOf(req) }) })),

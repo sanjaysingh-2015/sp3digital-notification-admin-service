@@ -158,10 +158,52 @@ router.delete('/templates/:key', authorize(P.TEMPLATE_MANAGE), validate(v.keyPar
  *     summary: Send a test message to an address
  *     responses:
  *       202: { description: Queued }
+ * /settings/whatsapp:
+ *   get:
+ *     tags: [Settings]
+ *     summary: WhatsApp settings
+ *     responses:
+ *       200: { description: Settings }
+ *   put:
+ *     tags: [Settings]
+ *     summary: Sender identity, hourly limit, quiet hours
+ *     responses:
+ *       200: { description: Updated settings }
+ * /settings/whatsapp/test:
+ *   post:
+ *     tags: [Settings]
+ *     summary: Send a test message to a phone number
+ *     responses:
+ *       202: { description: Queued }
+ * /settings/sms:
+ *   get:
+ *     tags: [Settings]
+ *     summary: SMS settings
+ *     responses:
+ *       200: { description: Settings }
+ *   put:
+ *     tags: [Settings]
+ *     summary: Sender identity, hourly limit, quiet hours
+ *     responses:
+ *       200: { description: Updated settings }
+ * /settings/sms/test:
+ *   post:
+ *     tags: [Settings]
+ *     summary: Send a test message to a phone number
+ *     responses:
+ *       202: { description: Queued }
  */
 router.get('/settings/email', authorize(P.SETTINGS), c.getEmailSettings);
 router.put('/settings/email', authorize(P.SETTINGS), validate(v.emailSettingsSchema), c.updateEmailSettings);
 router.post('/settings/email/test', authorize(P.SETTINGS), validate(v.testSendSchema), c.testEmail);
+
+router.get('/settings/whatsapp', authorize(P.SETTINGS), c.getWhatsAppSettings);
+router.put('/settings/whatsapp', authorize(P.SETTINGS), validate(v.whatsappSettingsSchema), c.updateWhatsAppSettings);
+router.post('/settings/whatsapp/test', authorize(P.SETTINGS), validate(v.testSendSchema), c.testWhatsApp);
+
+router.get('/settings/sms', authorize(P.SETTINGS), c.getSmsSettings);
+router.put('/settings/sms', authorize(P.SETTINGS), validate(v.smsSettingsSchema), c.updateSmsSettings);
+router.post('/settings/sms/test', authorize(P.SETTINGS), validate(v.testSendSchema), c.testSms);
 
 /**
  * @openapi

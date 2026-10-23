@@ -1,15 +1,18 @@
 const { Op } = require('sequelize');
 const { NotificationSuppression } = require('../models');
 const { httpError, notFound } = require('../utils/errors');
-const { maskEmail } = require('../utils/mask');
+const { maskEmail, maskPhone } = require('../utils/mask');
 const { toSequelizePage, buildEnvelope } = require('../utils/pagination');
 
-const normalize = (address) => String(address).trim().toLowerCase();
+const normalize = (address, channel) => {
+  const str = String(address).trim();
+  return channel === 'EMAIL' ? str.toLowerCase() : str;
+};
 
 const shape = (s) => ({
   suppressionId: s.suppressionId,
   channel: s.channel,
-  address: maskEmail(s.address),
+  address: s.channel === 'EMAIL' ? maskEmail(s.address) : maskPhone(s.address),
   category: s.category,
   reason: s.reason,
   note: s.note,
@@ -25,8 +28,9 @@ class SuppressionService {
    * someone who unsubscribed from reminders); a bounced address is undeliverable for ALL of them.
    */
   async blocking({ tenantUuid, channel, address, category }) {
+    const normalized = normalize(address, channel);
     const rows = await NotificationSuppression.findAll({
-      where: { tenant_uuid: tenantUuid, channel, address: normalize(address), status: 'ACTIVE' },
+      where: { tenant_uuid: tenantUuid, channel, address: normalized, status: 'ACTIVE' },
     });
     return (
       rows.find((s) => s.reason === 'BOUNCED') ||
@@ -36,7 +40,7 @@ class SuppressionService {
   }
 
   async add({ tenantUuid, userId, channel = 'EMAIL', address, category = null, reason = 'MANUAL', note = null }) {
-    const normalized = normalize(address);
+    const normalized = normalize(address, channel);
     const existing = await NotificationSuppression.findOne({
       where: { tenant_uuid: tenantUuid, channel, address: normalized, category, reason, status: 'ACTIVE' },
     });

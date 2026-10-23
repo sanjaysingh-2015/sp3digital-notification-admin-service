@@ -21,10 +21,10 @@ async function suppress(n, reason) {
 }
 
 async function deliver(n, now, tally) {
-  const settings = await settingsService.effectiveEmail(n.tenantUuid);
+  const settings = await settingsService.effective(n.channel, n.tenantUuid);
 
   // Checked again at send time: the address may have been blocked, or the channel switched off, since it was queued.
-  if (!settings.enabled) { await suppress(n, 'Email notifications are switched off for this organization'); tally.suppressed += 1; return; }
+  if (!settings.enabled) { await suppress(n, `${n.channel} notifications are switched off for this organization`); tally.suppressed += 1; return; }
   const block = await suppressionService.blocking({ tenantUuid: n.tenantUuid, channel: n.channel, address: n.recipientAddress, category: n.category });
   if (block) { await suppress(n, `This address is suppressed (${block.reason.toLowerCase().replace('_', ' ')})`); tally.suppressed += 1; return; }
 
@@ -42,10 +42,24 @@ async function deliver(n, now, tally) {
 
   const attemptNo = n.attempts + 1;
   try {
-    const result = await providerFor(n.channel).send({
-      to: n.recipientAddress, toName: n.recipientName, subject: n.subject, text: n.bodyText, html: n.bodyHtml,
-      from: settings.from, replyTo: settings.replyTo, smtp: settings.smtp,
-    });
+    const providerArgs = { to: n.recipientAddress, toName: n.recipientName };
+    if (n.channel === 'EMAIL') {
+      providerArgs.subject = n.subject;
+      providerArgs.text = n.bodyText;
+      providerArgs.html = n.bodyHtml;
+      providerArgs.from = settings.from;
+      providerArgs.replyTo = settings.replyTo;
+      providerArgs.smtp = settings.providerConfig;
+    } else if (n.channel === 'WHATSAPP') {
+      providerArgs.body = n.bodyText;
+      providerArgs.from = settings.from.address;
+      providerArgs.providerConfig = settings.providerConfig;
+    } else if (n.channel === 'SMS') {
+      providerArgs.body = n.bodyText;
+      providerArgs.from = settings.from.address;
+      providerArgs.providerConfig = settings.providerConfig;
+    }
+    const result = await providerFor(n.channel).send(providerArgs);
     await NotificationAttempt.create({ notificationId: n.notificationId, attemptNo, outcome: 'SENT', providerResponse: result.response ? String(result.response).slice(0, 500) : null });
     // Delivered: keep the metadata, drop the text (it may name a patient and an appointment).
     await n.update({

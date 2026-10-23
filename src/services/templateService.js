@@ -23,13 +23,13 @@ class TemplateService {
   /** Writes the platform's shipped templates into the database; re-run at every start. */
   async ensureDefaults() {
     for (const d of defaults) {
-      const where = { tenant_uuid: null, template_key: d.key, channel: 'EMAIL', locale: 'en' };
+      const where = { tenant_uuid: null, template_key: d.key, channel: d.channel || 'EMAIL', locale: 'en' };
       const existing = await NotificationTemplate.findOne({ where });
       const values = {
         category: d.category, description: d.description, subject: d.subject, bodyText: d.bodyText,
         bodyHtml: d.bodyHtml, variables: d.variables, defaultVersion: d.version, status: 'ACTIVE',
       };
-      if (!existing) await NotificationTemplate.create({ tenantUuid: null, templateKey: d.key, channel: 'EMAIL', locale: 'en', ...values });
+      if (!existing) await NotificationTemplate.create({ tenantUuid: null, templateKey: d.key, channel: d.channel || 'EMAIL', locale: 'en', ...values });
       else if (existing.defaultVersion < d.version) await existing.update({ ...values, modifiedOn: new Date() });
     }
   }
