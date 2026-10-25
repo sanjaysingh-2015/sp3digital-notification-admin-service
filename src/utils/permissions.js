@@ -14,6 +14,18 @@ const NOTIFICATION_PERMISSIONS = {
   TEMPLATE_READ: 'notification-admin:template:read',
   TEMPLATE_MANAGE: 'notification-admin:template:manage',  // override or revert a template
   SETTINGS: 'notification-admin:settings:manage',         // sender identity, SMTP account, limits, quiet hours
+  // Admin-screen permissions (organization-admin-ui > Notification menu)
+  CHANNEL_CONFIG_READ: 'notification-admin:channel-config:read',
+  CHANNEL_CONFIG_CREATE: 'notification-admin:channel-config:create',
+  CHANNEL_CONFIG_UPDATE: 'notification-admin:channel-config:update',
+  CHANNEL_CONFIG_DELETE: 'notification-admin:channel-config:delete',
+  TEMPLATE_CREATE: 'notification-admin:template:create',
+  TEMPLATE_UPDATE: 'notification-admin:template:update',
+  TEMPLATE_DELETE: 'notification-admin:template:delete',
+  EVENT_DEFINITION_READ: 'notification-admin:event-definition:read',
+  EVENT_DEFINITION_CREATE: 'notification-admin:event-definition:create',
+  EVENT_DEFINITION_UPDATE: 'notification-admin:event-definition:update',
+  EVENT_DEFINITION_DELETE: 'notification-admin:event-definition:delete',
   SUPPRESSION: 'notification-admin:suppression:manage',   // add / lift suppressions
 };
 

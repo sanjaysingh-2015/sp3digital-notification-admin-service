@@ -8,6 +8,7 @@ const { platformConfig: smsConfig } = require('../providers/smsProvider');
 const DEFAULT_HOURLY_LIMIT = 500;
 
 const shape = (s, channel) => ({
+  settingId: s?.settingId ?? null,
   channel,
   isEnabled: s ? s.isEnabled : true,
   fromName: s?.fromName ?? null,
@@ -23,6 +24,9 @@ const shape = (s, channel) => ({
   effectiveHourlyLimit: s?.hourlyLimit ?? DEFAULT_HOURLY_LIMIT,
   quietHoursStart: s?.quietHoursStart ?? null,
   quietHoursEnd: s?.quietHoursEnd ?? null,
+  createdOn: s?.createdOn ?? null,
+  modifiedBy: s?.modifiedBy ?? null,
+  modifiedOn: s?.modifiedOn ?? null,
 });
 
 const channelPlatformFrom = (channel) => {
@@ -67,8 +71,40 @@ class SettingsService {
     if ((next.quietHoursStart && !next.quietHoursEnd) || (!next.quietHoursStart && next.quietHoursEnd)) {
       throw httpError(400, 'INVALID_SETTINGS', 'Give both a quiet-hours start and an end, or neither');
     }
-    row = row ? await row.update(values) : await TenantChannelSetting.create({ tenantUuid, channel, ...values });
+    row = row ? await row.update(values) : await TenantChannelSetting.create({ tenantUuid, channel, createdBy: userId || null, ...values });
     return shape(row, channel);
+  }
+
+  // ---- admin screen (Notification > Channel): one row per channel the tenant has configured ----
+
+  async listAll(tenantUuid) {
+    const rows = await TenantChannelSetting.findAll({ where: { tenant_uuid: tenantUuid }, order: [['channel', 'ASC']] });
+    return { data: rows.map((r) => shape(r, r.channel)) };
+  }
+
+  async getById(tenantUuid, settingId) {
+    const row = await TenantChannelSetting.findOne({ where: { setting_id: settingId, tenant_uuid: tenantUuid } });
+    if (!row) throw httpError(404, 'NOT_FOUND', 'Channel setting not found');
+    return shape(row, row.channel);
+  }
+
+  async create(tenantUuid, { channel, ...patch }, { userId }) {
+    const exists = await TenantChannelSetting.findOne({ where: { tenant_uuid: tenantUuid, channel } });
+    if (exists) throw httpError(409, 'ALREADY_EXISTS', `A ${channel} setting already exists for your organization. Edit it instead.`);
+    return this.update(tenantUuid, channel, patch, { userId });
+  }
+
+  async updateById(tenantUuid, settingId, patch, { userId }) {
+    const row = await TenantChannelSetting.findOne({ where: { setting_id: settingId, tenant_uuid: tenantUuid } });
+    if (!row) throw httpError(404, 'NOT_FOUND', 'Channel setting not found');
+    const { channel, ...rest } = patch; // the channel of an existing setting cannot change
+    return this.update(tenantUuid, row.channel, rest, { userId });
+  }
+
+  async removeById(tenantUuid, settingId) {
+    const removed = await TenantChannelSetting.destroy({ where: { setting_id: settingId, tenant_uuid: tenantUuid } });
+    if (!removed) throw httpError(404, 'NOT_FOUND', 'Channel setting not found');
+    return { deleted: true };
   }
 
   async effective(channel, tenantUuid) {

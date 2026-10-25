@@ -17,6 +17,8 @@ module.exports = (sequelize, DataTypes) =>
       hourlyLimit: { type: DataTypes.INTEGER, allowNull: true, field: 'hourly_limit' },
       quietHoursStart: { type: DataTypes.STRING(5), allowNull: true, field: 'quiet_hours_start' },
       quietHoursEnd: { type: DataTypes.STRING(5), allowNull: true, field: 'quiet_hours_end' },
+      createdBy: { type: DataTypes.BIGINT, allowNull: true, field: 'created_by' },
+      createdOn: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'created_on' },
       modifiedBy: { type: DataTypes.BIGINT, allowNull: true, field: 'modified_by' },
       modifiedOn: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'modified_on' },
     },

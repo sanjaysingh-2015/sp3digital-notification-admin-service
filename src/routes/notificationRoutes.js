@@ -130,7 +130,14 @@ router.post('/notifications/:id/retry', authorize(P.UPDATE), validate(v.idParam,
  *     responses:
  *       200: { description: The platform template now in effect }
  */
-router.get('/templates', authorize(P.TEMPLATE_READ), c.listTemplates);
+router.get('/templates', authorize(P.TEMPLATE_READ), validate(v.templateListQuerySchema, 'query'), c.listTemplates);
+router.post('/templates', authorize(P.TEMPLATE_CREATE), validate(v.templateCreateSchema), c.createTemplate);
+// By numeric id (the admin screen). Express 5 has no inline regex params, so a non-numeric segment
+// (a template key) falls through to the /templates/:key routes below.
+const numericId = (req, res, next) => (/^\d+$/.test(req.params.id) ? next() : next('route'));
+router.get('/templates/:id', numericId, authorize(P.TEMPLATE_READ), validate(v.idParam, 'params'), c.getTemplateById);
+router.put('/templates/:id', numericId, authorize(P.TEMPLATE_UPDATE), validate(v.idParam, 'params'), validate(v.templateUpdateSchema), c.updateTemplateById);
+router.delete('/templates/:id', numericId, authorize(P.TEMPLATE_DELETE), validate(v.idParam, 'params'), c.removeTemplateById);
 router.post('/templates/preview', authorize(P.TEMPLATE_READ), validate(v.previewSchema), c.previewTemplate);
 router.get('/templates/:key', authorize(P.TEMPLATE_READ), validate(v.keyParam, 'params'), validate(v.templateQuerySchema, 'query'), c.getTemplate);
 router.put('/templates/:key', authorize(P.TEMPLATE_MANAGE), validate(v.keyParam, 'params'), validate(v.templateSaveSchema), c.saveTemplate);
@@ -193,6 +200,35 @@ router.delete('/templates/:key', authorize(P.TEMPLATE_MANAGE), validate(v.keyPar
  *     responses:
  *       202: { description: Queued }
  */
+/**
+ * @openapi
+ * /channel-settings:
+ *   get: { tags: [Settings], summary: 'Every channel the organization has configured', responses: { 200: { description: '{ data: [setting] }' } } }
+ *   post: { tags: [Settings], summary: 'Configure a channel (one setting per channel)', responses: { 201: { description: Created }, 409: { description: Already configured } } }
+ * /channel-settings/{id}:
+ *   get: { tags: [Settings], summary: 'One channel setting', responses: { 200: { description: Setting } } }
+ *   put: { tags: [Settings], summary: 'Update a channel setting (a blank SMTP password keeps the stored one)', responses: { 200: { description: Updated } } }
+ *   delete: { tags: [Settings], summary: 'Remove the setting; platform defaults apply again', responses: { 200: { description: Deleted } } }
+ * /event-definitions:
+ *   get: { tags: [Events], summary: 'Events in effect for this organization (platform events plus its own)', responses: { 200: { description: Paginated events } } }
+ *   post: { tags: [Events], summary: 'Define an event for this organization', responses: { 201: { description: Created } } }
+ * /event-definitions/{id}:
+ *   get: { tags: [Events], summary: 'One event definition', responses: { 200: { description: Event } } }
+ *   put: { tags: [Events], summary: 'Update an organization event (platform events are read-only)', responses: { 200: { description: Updated } } }
+ *   delete: { tags: [Events], summary: 'Delete an organization event', responses: { 200: { description: Deleted } } }
+ */
+router.get('/channel-settings', authorize(P.CHANNEL_CONFIG_READ), c.listChannelSettings);
+router.post('/channel-settings', authorize(P.CHANNEL_CONFIG_CREATE), validate(v.channelSettingCreateSchema), c.createChannelSetting);
+router.get('/channel-settings/:id', authorize(P.CHANNEL_CONFIG_READ), validate(v.idParam, 'params'), c.getChannelSetting);
+router.put('/channel-settings/:id', authorize(P.CHANNEL_CONFIG_UPDATE), validate(v.idParam, 'params'), validate(v.channelSettingUpdateSchema), c.updateChannelSetting);
+router.delete('/channel-settings/:id', authorize(P.CHANNEL_CONFIG_DELETE), validate(v.idParam, 'params'), c.removeChannelSetting);
+
+router.get('/event-definitions', authorize(P.EVENT_DEFINITION_READ), validate(v.eventListQuerySchema, 'query'), c.listEventDefinitions);
+router.post('/event-definitions', authorize(P.EVENT_DEFINITION_CREATE), validate(v.eventCreateSchema), c.createEventDefinition);
+router.get('/event-definitions/:id', authorize(P.EVENT_DEFINITION_READ), validate(v.idParam, 'params'), c.getEventDefinition);
+router.put('/event-definitions/:id', authorize(P.EVENT_DEFINITION_UPDATE), validate(v.idParam, 'params'), validate(v.eventUpdateSchema), c.updateEventDefinition);
+router.delete('/event-definitions/:id', authorize(P.EVENT_DEFINITION_DELETE), validate(v.idParam, 'params'), c.removeEventDefinition);
+
 router.get('/settings/email', authorize(P.SETTINGS), c.getEmailSettings);
 router.put('/settings/email', authorize(P.SETTINGS), validate(v.emailSettingsSchema), c.updateEmailSettings);
 router.post('/settings/email/test', authorize(P.SETTINGS), validate(v.testSendSchema), c.testEmail);

@@ -75,6 +75,7 @@ async function startServer() {
   try {
     await db.sequelize.authenticate();
     await templateService.ensureDefaults(); // the platform's shipped templates
+    await require('./services/eventDefinitionService').ensureDefaults(); // and events
     console.log('Database connection established successfully.');
     app.listen(PORT, () => console.log(`sp3digital-notification-service running on port ${PORT}`));
     if (process.env.NOTIFICATION_WORKER !== 'false') {

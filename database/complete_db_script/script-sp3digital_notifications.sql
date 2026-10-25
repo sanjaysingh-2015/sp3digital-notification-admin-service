@@ -11,6 +11,7 @@
 --   notifications                  the outbox AND the delivery log (one row per message)
 --   notification_attempts          every delivery attempt of a notification
 --   notification_suppressions      addresses that must not be written to (unsubscribed, bounced ...)
+--   notification_event_definitions which template/channel each event uses by default (platform + tenant overrides)
 --   tenant_channel_settings        per-tenant sender identity, optional own SMTP account, limits, quiet hours
 --
 -- Email is the only channel today; `channel` is a column everywhere so SMS or
@@ -32,6 +33,7 @@ DROP TABLE IF EXISTS `notification_attempts`;
 DROP TABLE IF EXISTS `notifications`;
 DROP TABLE IF EXISTS `notification_suppressions`;
 DROP TABLE IF EXISTS `tenant_channel_settings`;
+DROP TABLE IF EXISTS `notification_event_definitions`;
 DROP TABLE IF EXISTS `notification_templates`;
 SET FOREIGN_KEY_CHECKS = 1;
 
@@ -169,8 +171,35 @@ CREATE TABLE `tenant_channel_settings` (
   `hourly_limit` int unsigned DEFAULT NULL,               -- messages per hour for the tenant; NULL = the default (500)
   `quiet_hours_start` char(5) DEFAULT NULL,               -- "21:00": reminders wait until quiet_hours_end
   `quiet_hours_end` char(5) DEFAULT NULL,                 -- "07:00"
+  `created_by` bigint unsigned DEFAULT NULL,
+  `created_on` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `modified_by` bigint unsigned DEFAULT NULL,
   `modified_on` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`setting_id`),
   UNIQUE KEY `uk_channel_settings_tenant_channel` (`tenant_uuid`,`channel`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- =============================================================
+-- 6. notification_event_definitions — default template/channel per event
+-- Platform rows (tenant_uuid NULL) are written by the service at start-up (src/defaults/events.js).
+-- =============================================================
+CREATE TABLE `notification_event_definitions` (
+  `event_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `tenant_uuid` char(36) DEFAULT NULL,
+  `event_key` varchar(60) NOT NULL,
+  `display_name` varchar(150) NOT NULL,
+  `description` varchar(255) DEFAULT NULL,
+  `default_channel` varchar(20) NOT NULL DEFAULT 'EMAIL',
+  `default_template_key` varchar(60) DEFAULT NULL,
+  `default_locale` varchar(10) NOT NULL DEFAULT 'en',
+  `default_category` varchar(20) NOT NULL DEFAULT 'TRANSACTIONAL',
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `created_on` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `modified_by` bigint unsigned DEFAULT NULL,
+  `modified_on` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `tenant_key` char(36) GENERATED ALWAYS AS (IFNULL(`tenant_uuid`, '')) STORED,
+  PRIMARY KEY (`event_id`),
+  UNIQUE KEY `uk_event_definitions_scope` (`tenant_key`,`event_key`),
+  KEY `idx_event_definitions_channel` (`default_channel`,`default_category`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

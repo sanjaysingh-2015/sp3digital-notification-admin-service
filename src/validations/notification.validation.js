@@ -115,6 +115,62 @@ const suppressionAddSchema = Joi.object({
 
 const suppressionListQuerySchema = paginationQuerySchema({ status: Joi.string().valid('ACTIVE', 'LIFTED', '').optional() });
 
+const CHANNELS = [...SUPPORTED_CHANNELS, 'PUSH', 'WEBHOOK'];
+const channelSettingCreateSchema = channelSettingsSchema.keys({ channel: Joi.string().valid(...CHANNELS).required() });
+const channelSettingUpdateSchema = channelSettingsSchema.keys({ channel: Joi.string().valid(...CHANNELS) });
+
+const variableDef = Joi.object({
+  name: Joi.string().trim().pattern(/^[A-Za-z][A-Za-z0-9_]{0,59}$/).required(),
+  required: Joi.boolean().default(false),
+  description: Joi.string().trim().max(255).allow('', null),
+});
+const templateAdminFields = {
+  category: Joi.string().valid(...CATEGORIES),
+  description: Joi.string().trim().max(255).allow('', null),
+  subject: Joi.string().trim().min(1).max(255),
+  bodyText: Joi.string().min(1).max(50000),
+  bodyHtml: Joi.string().max(100000).allow('', null),
+  variables: Joi.array().items(variableDef).max(50),
+  status: Joi.string().valid('ACTIVE', 'INACTIVE'),
+};
+const templateCreateSchema = Joi.object({
+  ...templateAdminFields,
+  templateKey: templateKey.required(),
+  channel: Joi.string().valid(...CHANNELS).default('EMAIL'),
+  locale: Joi.string().trim().min(2).max(10).default('en'),
+  subject: templateAdminFields.subject.required(),
+  bodyText: templateAdminFields.bodyText.required(),
+});
+// key, channel and locale identify a template and never change; the extra fields the screen sends are ignored.
+const templateUpdateSchema = Joi.object(templateAdminFields).min(1);
+const templateListQuerySchema = paginationQuerySchema({
+  limit: Joi.number().integer().min(1).max(100).default(100),
+  search: Joi.string().trim().max(100).allow(''),
+  channel: Joi.string().valid(...CHANNELS, ''),
+  category: Joi.string().valid(...CATEGORIES, ''),
+  locale: Joi.string().trim().max(10).allow(''),
+  status: Joi.string().valid('ACTIVE', 'INACTIVE', ''),
+});
+
+const eventKey = Joi.string().pattern(/^[A-Z][A-Z0-9_]{2,59}$/).message('event keys are UPPER_SNAKE_CASE');
+const eventFields = {
+  displayName: Joi.string().trim().min(1).max(150),
+  description: Joi.string().trim().max(255).allow('', null),
+  defaultChannel: Joi.string().valid(...CHANNELS),
+  defaultTemplateKey: templateKey.allow('', null),
+  defaultLocale: Joi.string().trim().min(2).max(10),
+  defaultCategory: Joi.string().valid(...CATEGORIES),
+  isActive: Joi.boolean(),
+};
+const eventCreateSchema = Joi.object({ ...eventFields, eventKey: eventKey.required(), displayName: eventFields.displayName.required() });
+const eventUpdateSchema = Joi.object({ ...eventFields, eventKey: eventKey }).min(1);
+const eventListQuerySchema = paginationQuerySchema({
+  search: Joi.string().trim().max(100).allow(''),
+  defaultChannel: Joi.string().valid(...CHANNELS, ''),
+  defaultCategory: Joi.string().valid(...CATEGORIES, ''),
+  isActive: Joi.boolean(),
+});
+
 const idParam = Joi.object({ id: positiveId.required() });
 const keyParam = Joi.object({ key: templateKey.required() });
 
@@ -122,4 +178,6 @@ module.exports = {
   sendSchema, listQuerySchema, cancelBySourceSchema, templateQuerySchema, templateSaveSchema, previewSchema,
   emailSettingsSchema, whatsappSettingsSchema, smsSettingsSchema, testSendSchema,
   suppressionAddSchema, suppressionListQuerySchema, idParam, keyParam,
+  channelSettingCreateSchema, channelSettingUpdateSchema, templateCreateSchema, templateUpdateSchema, templateListQuerySchema,
+  eventCreateSchema, eventUpdateSchema, eventListQuerySchema,
 };

@@ -1,6 +1,7 @@
 const notificationService = require('../services/notificationService');
 const templateService = require('../services/templateService');
 const settingsService = require('../services/settingsService');
+const eventDefinitionService = require('../services/eventDefinitionService');
 const suppressionService = require('../services/suppressionService');
 
 const ctxOf = (req) => ({ tenantUuid: req.auth.tenantUuid, userId: req.auth.userId });
@@ -28,11 +29,31 @@ module.exports = {
   cancelBySource: handle(async (req) => ({ status: 200, body: await notificationService.cancelBySource({ ...req.body, tenantUuid: req.auth.tenantUuid }) })),
 
   // templates
-  listTemplates: handle(async (req) => ({ status: 200, body: await templateService.list(ctxOf(req)) })),
+  listTemplates: handle(async (req) => ({ status: 200, body: await templateService.list({ ...req.query, tenantUuid: req.auth.tenantUuid }) })),
   getTemplate: handle(async (req) => ({ status: 200, body: await templateService.get({ tenantUuid: req.auth.tenantUuid, templateKey: req.params.key, ...req.query }) })),
   saveTemplate: handle(async (req) => ({ status: 200, body: await templateService.saveOverride({ ...ctxOf(req), templateKey: req.params.key, ...req.body }) })),
   removeTemplate: handle(async (req) => ({ status: 200, body: await templateService.removeOverride({ tenantUuid: req.auth.tenantUuid, templateKey: req.params.key, ...req.query }) })),
   previewTemplate: handle(async (req) => ({ status: 200, body: await templateService.preview({ tenantUuid: req.auth.tenantUuid, ...req.body }) })),
+
+  // templates by id (admin screen)
+  getTemplateById: handle(async (req) => ({ status: 200, body: await templateService.getById({ tenantUuid: req.auth.tenantUuid, templateId: req.params.id }) })),
+  createTemplate: handle(async (req) => ({ status: 201, body: await templateService.create({ ...ctxOf(req), ...req.body }) })),
+  updateTemplateById: handle(async (req) => ({ status: 200, body: await templateService.updateById({ ...ctxOf(req), templateId: req.params.id, ...req.body }) })),
+  removeTemplateById: handle(async (req) => ({ status: 200, body: await templateService.removeById({ tenantUuid: req.auth.tenantUuid, templateId: req.params.id }) })),
+
+  // channel settings by id (admin screen)
+  listChannelSettings: handle(async (req) => ({ status: 200, body: await settingsService.listAll(req.auth.tenantUuid) })),
+  getChannelSetting: handle(async (req) => ({ status: 200, body: await settingsService.getById(req.auth.tenantUuid, req.params.id) })),
+  createChannelSetting: handle(async (req) => ({ status: 201, body: await settingsService.create(req.auth.tenantUuid, req.body, ctxOf(req)) })),
+  updateChannelSetting: handle(async (req) => ({ status: 200, body: await settingsService.updateById(req.auth.tenantUuid, req.params.id, req.body, ctxOf(req)) })),
+  removeChannelSetting: handle(async (req) => ({ status: 200, body: await settingsService.removeById(req.auth.tenantUuid, req.params.id) })),
+
+  // event definitions
+  listEventDefinitions: handle(async (req) => ({ status: 200, body: await eventDefinitionService.list({ ...req.query, tenantUuid: req.auth.tenantUuid }) })),
+  getEventDefinition: handle(async (req) => ({ status: 200, body: await eventDefinitionService.getById({ tenantUuid: req.auth.tenantUuid, eventId: req.params.id }) })),
+  createEventDefinition: handle(async (req) => ({ status: 201, body: await eventDefinitionService.create({ ...ctxOf(req), ...req.body }) })),
+  updateEventDefinition: handle(async (req) => ({ status: 200, body: await eventDefinitionService.update({ ...ctxOf(req), eventId: req.params.id, ...req.body }) })),
+  removeEventDefinition: handle(async (req) => ({ status: 200, body: await eventDefinitionService.remove({ tenantUuid: req.auth.tenantUuid, eventId: req.params.id }) })),
 
   // settings
   getEmailSettings: handle(async (req) => ({ status: 200, body: await settingsService.getEmail(req.auth.tenantUuid) })),
